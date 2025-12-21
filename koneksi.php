@@ -1,12 +1,20 @@
 <?php
 $host = "localhost";
-$user = "root";
-$pass = "";
-$db   = "db_projekakhir"; // Pastikan nama DB sesuai yang kamu buat tadi
+$user = "root";      // default XAMPP
+$password = "";      // default XAMPP kosong
+$database = "db_projekakhir"; // NAMA DATABASE ANDA
 
-$conn = mysqli_connect($host, $user, $pass, $db);
+// Membuat koneksi
+$koneksi = mysqli_connect($host, $user, $password, $database);
 
-if (!$conn) {
-    die("Koneksi gagal: " . mysqli_connect_error());
+// Cek koneksi
+if (!$koneksi) {
+    die("Koneksi database gagal: " . mysqli_connect_error());
 }
+
+// Set charset
+mysqli_set_charset($koneksi, "utf8");
+
+// OPTIONAL: Tampilkan pesan sukses (hapus di production)
+// echo "Koneksi database berhasil!";
 ?>

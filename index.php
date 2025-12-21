@@ -1,17 +1,23 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-include 'koneksi.php';
+// Pastikan file koneksi.php ada di folder yang sama
+require_once 'koneksi.php';
 
-// Ambil data statistik untuk Dashboard
-$query_total = mysqli_query($conn, "SELECT COUNT(*) as jml FROM tugas");
-$data_total = mysqli_fetch_assoc($query_total);
+// Query data tugas
+$query = "SELECT * FROM tugas ORDER BY deadline ASC, created_at DESC";
+$result = mysqli_query($koneksi, $query);
 
-$query_selesai = mysqli_query($conn, "SELECT COUNT(*) as jml FROM tugas WHERE status='Selesai'");
-$data_selesai = mysqli_fetch_assoc($query_selesai);
+// Hitung statistik
+$query_total = "SELECT COUNT(*) as total FROM tugas";
+$query_selesai = "SELECT COUNT(*) as selesai FROM tugas WHERE status='Selesai'";
+$query_pending = "SELECT COUNT(*) as pending FROM tugas WHERE status='Pending'";
 
-$query_pending = mysqli_query($conn, "SELECT COUNT(*) as jml FROM tugas WHERE status='Pending'");
-$data_pending = mysqli_fetch_assoc($query_pending);
+$total_result = mysqli_query($koneksi, $query_total);
+$selesai_result = mysqli_query($koneksi, $query_selesai);
+$pending_result = mysqli_query($koneksi, $query_pending);
+
+$total = mysqli_fetch_assoc($total_result)['total'] ?? 0;
+$selesai = mysqli_fetch_assoc($selesai_result)['selesai'] ?? 0;
+$pending = mysqli_fetch_assoc($pending_result)['pending'] ?? 0;
 ?>
 
 <!DOCTYPE html>
@@ -20,58 +26,135 @@ $data_pending = mysqli_fetch_assoc($query_pending);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manajemen Tugas Harian</title>
-    <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
-        <h1>Manajemen Tugas Harian</h1>
+        <header>
+            <h1><i class="fas fa-tasks"></i> Manajemen Tugas Harian</h1>
+            <p>Kelola tugas Anda dengan mudah dan efisien</p>
+        </header>
 
-        <div class="dashboard">
-            <div class="card" style="background:#4a90e2">Total: <?php echo $data_total['jml']; ?></div>
-            <div class="card" style="background:#2ecc71">Selesai: <?php echo $data_selesai['jml']; ?></div>
-            <div class="card" style="background:#e67e22">Pending: <?php echo $data_pending['jml']; ?></div>
+        <!-- Dashboard Stats -->
+        <div class="dashboard-stats">
+            <div class="stat-card total">
+                <div class="stat-icon">
+                    <i class="fas fa-clipboard-list"></i>
+                </div>
+                <h3>Total Tugas</h3>
+                <p class="stat-number"><?php echo $total; ?></p>
+            </div>
+            <div class="stat-card selesai">
+                <div class="stat-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h3>Selesai</h3>
+                <p class="stat-number"><?php echo $selesai; ?></p>
+            </div>
+            <div class="stat-card pending">
+                <div class="stat-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h3>Pending</h3>
+                <p class="stat-number"><?php echo $pending; ?></p>
+            </div>
         </div>
 
-        <form id="taskForm" action="proses_tugas.php?aksi=tambah" method="POST">
-            <input type="text" name="judul" id="judul" placeholder="Judul Tugas..." required>
-            <textarea name="deskripsi" placeholder="Deskripsi..."></textarea>
-            <input type="date" name="deadline" required>
-            <button type="submit">Tambah Tugas</button>
-        </form>
+        <!-- Action Bar -->
+        <div class="action-bar">
+            <a href="tambah.php" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Tambah Tugas Baru
+            </a>
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Cari tugas berdasarkan judul...">
+            </div>
+        </div>
 
-        <input type="text" id="searchInput" placeholder="Cari tugas...">
-        <table id="taskTable">
-            <thead>
-                <tr>
-                    <th>Tugas</th>
-                    <th>Deadline</th>
-                    <th>Status</th>
-                    <th>Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php
-                $tampil = mysqli_query($conn, "SELECT * FROM tugas ORDER BY id DESC");
-                while($row = mysqli_fetch_assoc($tampil)):
-                ?>
-                <tr>
-                    <td>
-                        <strong><?php echo $row['judul']; ?></strong><br>
-                        <small><?php echo $row['deskripsi']; ?></small>
-                    </td>
-                    <td><?php echo $row['deadline']; ?></td>
-                    <td><?php echo $row['status']; ?></td>
-                    <td>
-                        <?php if($row['status'] == 'Pending'): ?>
-                            <a href="proses_tugas.php?aksi=update&id=<?php echo $row['id']; ?>" style="color:green">✔</a>
-                        <?php endif; ?>
-                        <a href="javascript:void(0)" onclick="konfirmasiHapus(<?php echo $row['id']; ?>)" style="color:red">🗑</a>
-                    </td>
-                </tr>
-                <?php endwhile; ?>
-            </tbody>
-        </table>
+        <!-- Table -->
+        <div class="table-container">
+            <?php if(mysqli_num_rows($result) > 0): ?>
+            <table id="tasksTable">
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>Judul</th>
+                        <th>Deskripsi</th>
+                        <th>Deadline</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $no = 1;
+                    while($row = mysqli_fetch_assoc($result)): 
+                        $status_class = ($row['status'] == 'Selesai') ? 'status-selesai' : 'status-pending';
+                        $deadline_formatted = date('d M Y', strtotime($row['deadline']));
+                        $today = date('Y-m-d');
+                        $is_overdue = ($row['deadline'] < $today && $row['status'] == 'Pending');
+                    ?>
+                    <tr class="<?php echo $is_overdue ? 'overdue' : ''; ?>">
+                        <td><?php echo $no++; ?></td>
+                        <td class="task-title"><?php echo htmlspecialchars($row['judul']); ?></td>
+                        <td class="task-desc"><?php echo htmlspecialchars($row['deskripsi']); ?></td>
+                        <td>
+                            <div class="deadline-cell">
+                                <i class="far fa-calendar"></i>
+                                <span><?php echo $deadline_formatted; ?></span>
+                                <?php if($is_overdue): ?>
+                                <span class="overdue-badge">TERLAMBAT</span>
+                                <?php endif; ?>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge <?php echo $status_class; ?>">
+                                <?php echo $row['status']; ?>
+                            </span>
+                        </td>
+                        <td class="action-buttons">
+                            <a href="edit.php?id=<?php echo $row['id']; ?>" class="btn btn-edit" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="proses_status.php?id=<?php echo $row['id']; ?>&status=<?php echo ($row['status'] == 'Pending') ? 'Selesai' : 'Pending'; ?>" 
+                               class="btn btn-status" 
+                               title="<?php echo ($row['status'] == 'Pending') ? 'Tandai Selesai' : 'Kembalikan ke Pending'; ?>">
+                                <?php if($row['status'] == 'Pending'): ?>
+                                    <i class="fas fa-check"></i>
+                                <?php else: ?>
+                                    <i class="fas fa-undo"></i>
+                                <?php endif; ?>
+                            </a>
+                            <a href="hapus.php?id=<?php echo $row['id']; ?>" 
+                               class="btn btn-delete" 
+                               title="Hapus"
+                               onclick="return confirm('Yakin ingin menghapus tugas \'<?php echo addslashes($row['judul']); ?>\'?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    <?php endwhile; ?>
+                </tbody>
+            </table>
+            <?php else: ?>
+            <div class="empty-state">
+                <i class="fas fa-clipboard-list fa-3x"></i>
+                <h3>Belum ada tugas</h3>
+                <p>Mulai dengan menambahkan tugas baru</p>
+                <a href="tambah.php" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Tambah Tugas Pertama
+                </a>
+            </div>
+            <?php endif; ?>
+        </div>
+
+        <footer>
+            <p>&copy; <?php echo date('Y'); ?> Manajemen Tugas Harian | Dibuat untuk Projek Akhir</p>
+        </footer>
     </div>
-    <script src="assets/script.js"></script>
+
+    <script src="assets/js/script.js"></script>
 </body>
 </html>
